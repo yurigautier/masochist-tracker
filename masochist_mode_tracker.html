@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Masochist Mode Tracker</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{--bg:#fafaf8;--bg2:#f1efe8;--bg3:#e8e6de;--text:#1a1a19;--text2:#5f5e5a;--text3:#888780;--border:#d3d1c7;--accent:#534AB7;--accent-light:#EEEDFE;--accent-mid:#AFA9EC;--accent-dark:#3C3489;--completed:#0F6E56;--completed-light:#E1F5EE;--completed-mid:#5DCAA5;--remaining:#993C1D;--remaining-light:#FAECE7;--remaining-mid:#F0997B;--card:#fff;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;--mono:'SF Mono','Fira Code','Cascadia Code',monospace}
+  @media(prefers-color-scheme:dark){:root{--bg:#1a1a19;--bg2:#2c2c2a;--bg3:#3a3a37;--text:#e8e6de;--text2:#b4b2a9;--text3:#888780;--border:#5f5e5a;--accent:#AFA9EC;--accent-light:#26215C;--accent-mid:#534AB7;--accent-dark:#CECBF6;--completed:#5DCAA5;--completed-light:#04342C;--completed-mid:#0F6E56;--remaining:#F0997B;--remaining-light:#4A1B0C;--remaining-mid:#993C1D;--card:#2c2c2a}}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh}
+  .container{max-width:720px;margin:0 auto;padding:2rem 1.25rem 4rem}
+  h1{font-size:1.5rem;font-weight:600;letter-spacing:-0.03em;margin-bottom:0.25rem}
+  .subtitle{font-size:0.85rem;color:var(--text3);margin-bottom:2rem}
+  .subtitle a{color:var(--accent);text-decoration:none}
+  .subtitle a:hover{text-decoration:underline}
+  .input-row{display:flex;gap:10px;margin-bottom:2rem}
+  .input-row input{flex:1;padding:10px 14px;font-size:0.95rem;font-family:var(--font);border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--text);outline:none;transition:border-color 0.2s}
+  .input-row input:focus{border-color:var(--accent)}
+  .input-row input::placeholder{color:var(--text3)}
+  .input-row button{padding:10px 22px;font-size:0.95rem;font-weight:500;font-family:var(--font);background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;transition:opacity 0.2s}
+  .input-row button:hover{opacity:0.88}
+  .input-row button:disabled{opacity:0.5;cursor:not-allowed}
+  .stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:1.5rem}
+  .stat-card{background:var(--bg2);border-radius:10px;padding:14px 16px}
+  .stat-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text3);margin-bottom:4px}
+  .stat-value{font-size:1.35rem;font-weight:600;letter-spacing:-0.02em}
+  .stat-sub{font-size:0.75rem;color:var(--text3);margin-top:2px}
+  .progress-wrap{margin-bottom:2rem}
+  .progress-bar-bg{width:100%;height:10px;background:var(--bg3);border-radius:99px;overflow:hidden}
+  .progress-bar-fill{height:100%;border-radius:99px;transition:width 0.6s cubic-bezier(0.22,1,0.36,1);background:linear-gradient(90deg,var(--completed-mid),var(--completed))}
+  .progress-labels{display:flex;justify-content:space-between;margin-top:6px;font-size:0.75rem;color:var(--text3)}
+  .badge{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;padding:0 7px;border-radius:99px;font-size:0.72rem;font-weight:600}
+  .badge-done{background:var(--completed-light);color:var(--completed)}
+  .badge-todo{background:var(--remaining-light);color:var(--remaining)}
+  .tabs{display:flex;gap:6px;margin-bottom:14px}
+  .tab{padding:6px 14px;font-size:0.8rem;font-weight:500;border-radius:8px;border:1.5px solid var(--border);background:transparent;color:var(--text2);cursor:pointer;font-family:var(--font);transition:all 0.15s}
+  .tab.active{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+  .quote-list{display:flex;flex-direction:column;gap:6px;margin-bottom:2.5rem}
+  .quote-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:var(--card);border:1px solid var(--border);transition:border-color 0.15s,background 0.15s;text-decoration:none;color:var(--text)}
+  .quote-item:hover{border-color:var(--accent);background:var(--accent-light)}
+  .quote-item.errored{border-color:var(--remaining-mid);border-style:dashed}
+  .quote-num{font-size:0.72rem;font-weight:600;color:var(--text3);min-width:32px;font-family:var(--mono)}
+  .quote-name{flex:1;font-size:0.88rem;font-weight:500}
+  .quote-chars{font-size:0.72rem;color:var(--text3);font-family:var(--mono)}
+  .quote-status{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+  .quote-status.done{background:var(--completed)}
+  .quote-status.todo{background:var(--remaining-mid)}
+  .quote-status.err{background:#E24B4A}
+  .quote-err-label{font-size:0.68rem;color:#E24B4A;font-family:var(--mono)}
+  .loading-state{text-align:center;padding:3rem 1rem}
+  .loading-state p{font-size:0.9rem;color:var(--text2);margin-bottom:0.5rem}
+  .progress-detail{font-size:0.78rem;color:var(--text3);font-family:var(--mono)}
+  .spinner{width:28px;height:28px;border:3px solid var(--bg3);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 1rem}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .error-msg{padding:14px 18px;border-radius:10px;background:#FCEBEB;color:#A32D2D;font-size:0.85rem;margin-bottom:1.5rem}
+  @media(prefers-color-scheme:dark){.error-msg{background:#501313;color:#F7C1C1}}
+  .warn-msg{padding:14px 18px;border-radius:10px;background:#FAEEDA;color:#854F0B;font-size:0.85rem;margin-bottom:1.5rem}
+  @media(prefers-color-scheme:dark){.warn-msg{background:#412402;color:#FAC775}}
+  .empty-state{text-align:center;padding:4rem 1rem;color:var(--text3)}
+  .empty-state p{font-size:0.9rem}
+  .char-breakdown{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:2rem}
+  .char-card{padding:14px 16px;border-radius:10px}
+  .char-card.typed{background:var(--completed-light)}
+  .char-card.remaining{background:var(--remaining-light)}
+  .char-card .cl{font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px}
+  .char-card.typed .cl{color:var(--completed)}
+  .char-card.remaining .cl{color:var(--remaining)}
+  .char-card .cv{font-size:1.2rem;font-weight:600;letter-spacing:-0.02em}
+  .char-card.typed .cv{color:var(--completed)}
+  .char-card.remaining .cv{color:var(--remaining)}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Masochist Mode Tracker</h1>
+  <p class="subtitle">Track your progress through <a href="https://typegg.io" target="_blank" rel="noopener">TypeGG</a>'s 100 Masochist Mode quotes</p>
+  <div class="input-row">
+    <input type="text" id="username-input" placeholder="Enter TypeGG username..." autocomplete="off" spellcheck="false" />
+    <button id="fetch-btn" onclick="startFetch()">Track</button>
+  </div>
+  <div id="error-area"></div>
+  <div id="results-area"></div>
+</div>
+<script>
+const QUOTES=[{"number":"#1","name":"The Night Before Christmas","slug":"ttnight_6698","link":"https://typegg.io/solo/ttnight_6698"},{"number":"#2","name":"The Irish Experience","slug":"fiofyww_3003","link":"https://typegg.io/solo/fiofyww_3003"},{"number":"#3","name":"Suffix Hell","slug":"oasanaa_8555","link":"https://typegg.io/solo/oasanaa_8555"},{"number":"#4","name":"Usenet Culture","slug":"tuchotc_8080","link":"https://typegg.io/solo/tuchotc_8080"},{"number":"#5","name":"The New Director","slug":"tn_1141","link":"https://typegg.io/solo/tn_1141"},{"number":"#6","name":"Arthritis Simulator","slug":"agaacad_6131","link":"https://typegg.io/solo/agaacad_6131"},{"number":"#7","name":"Sin Corpus Ascendit","slug":"c2scags_0141","link":"https://typegg.io/solo/c2scags_0141"},{"number":"#8","name":"Mahou Shoujo Riruru","slug":"yitmsrh_0411","link":"https://typegg.io/solo/yitmsrh_0411"},{"number":"#9","name":"ACK!","slug":"oatouco_0694","link":"https://typegg.io/solo/oatouco_0694"},{"number":"#10","name":"Gold-Bug","slug":"5652848_4032","link":"https://typegg.io/solo/5652848_4032"},{"number":"#11","name":"Brain Power","slug":"ltbkoaj_8262","link":"https://typegg.io/solo/ltbkoaj_8262"},{"number":"#12","name":"Organic Chemistry Hell","slug":"tipdiac_0197","link":"https://typegg.io/solo/tipdiac_0197"},{"number":"#13","name":"Military Ciphers","slug":"fcapasp_3101","link":"https://typegg.io/solo/fcapasp_3101"},{"number":"#14","name":"Not Just Hyphens","slug":"l_2740","link":"https://typegg.io/solo/l_2740"},{"number":"#15","name":"The Clerk","slug":"tcwctrt_1633","link":"https://typegg.io/solo/tcwctrt_1633"},{"number":"#16","name":"Relativity","slug":"dpvuvpv_8743","link":"https://typegg.io/solo/dpvuvpv_8743"},{"number":"#17","name":"Stamp-licking","slug":"rbyogyo_1135","link":"https://typegg.io/solo/rbyogyo_1135"},{"number":"#18","name":"ASCII Characters","slug":"tatcac0_1805","link":"https://typegg.io/solo/tatcac0_1805"},{"number":"#19","name":"Scatman","slug":"itssddy_1646","link":"https://typegg.io/solo/itssddy_1646"},{"number":"#20","name":"The Pound","slug":"hhghghh_4739","link":"https://typegg.io/solo/hhghghh_4739"},{"number":"#21","name":"The Following Communication","slug":"fiitfcc_8185","link":"https://typegg.io/solo/fiitfcc_8185"},{"number":"#22","name":"GEEK CODE BLOCK","slug":"bgcbv3g_7574","link":"https://typegg.io/solo/bgcbv3g_7574"},{"number":"#23","name":"Better Y.D.A.U.","slug":"yotdaui_0192","link":"https://typegg.io/solo/yotdaui_0192"},{"number":"#24","name":"Cartridge","slug":"cdreaat_1259","link":"https://typegg.io/solo/cdreaat_1259"},{"number":"#25","name":"The Socialist Experience","slug":"aiottpi_8417","link":"https://typegg.io/solo/aiottpi_8417"},{"number":"#26","name":"REDACTED","slug":"toniea__4834","link":"https://typegg.io/solo/toniea__4834"},{"number":"#27","name":"Copy That?","slug":"psa12zj_8889","link":"https://typegg.io/solo/psa12zj_8889"},{"number":"#28","name":"The Set Theory Experience","slug":"icoahby_6195","link":"https://typegg.io/solo/icoahby_6195"},{"number":"#29","name":"oo","slug":"lobfnfl_9914","link":"https://typegg.io/solo/lobfnfl_9914"},{"number":"#30","name":"That's A Lotta Arrangements","slug":"cicbdit_0404","link":"https://typegg.io/solo/cicbdit_0404"},{"number":"#31","name":"Resonance Frequencies","slug":"tsoaafo_1609","link":"https://typegg.io/solo/tsoaafo_1609"},{"number":"#32","name":"Jargonification","slug":"tasmojt_8685","link":"https://typegg.io/solo/tasmojt_8685"},{"number":"#33","name":"DNA Sequences","slug":"aalrrtl_8572","link":"https://typegg.io/solo/aalrrtl_8572"},{"number":"#34","name":"Penicillins","slug":"paasoac_6945","link":"https://typegg.io/solo/paasoac_6945"},{"number":"#35","name":"The Other Communication","slug":"hfiiacw_5103","link":"https://typegg.io/solo/hfiiacw_5103"},{"number":"#36","name":"Honestly? Screw You.","slug":"ttotkfb_7833","link":"https://typegg.io/solo/ttotkfb_7833"},{"number":"#37","name":"The Fall!","slug":"tfboaow_1420","link":"https://typegg.io/solo/tfboaow_1420"},{"number":"#38","name":"Greatest Dish Ever","slug":"lylahhw_3157","link":"https://typegg.io/solo/lylahhw_3157"},{"number":"#39","name":"Behold, the Constitution!","slug":"thorsbc_2466","link":"https://typegg.io/solo/thorsbc_2466"},{"number":"#40","name":"Peckinpah","slug":"tapipuo_2550","link":"https://typegg.io/solo/tapipuo_2550"},{"number":"#41","name":"How Do I Even Label This","slug":"a5mjdpa_6632","link":"https://typegg.io/solo/a5mjdpa_6632"},{"number":"#42","name":"GUILTY!!","slug":"noogggg_0887","link":"https://typegg.io/solo/noogggg_0887"},{"number":"#43","name":"Alcoholic Fermentation","slug":"accc2td_4540","link":"https://typegg.io/solo/accc2td_4540"},{"number":"#44","name":"Even I Don't Wanna Know","slug":"wtngamn_7486","link":"https://typegg.io/solo/wtngamn_7486"},{"number":"#45","name":"Voila!","slug":"vivahvv_4965","link":"https://typegg.io/solo/vivahvv_4965"},{"number":"#46","name":"Vim Documentation","slug":"potumcf_3047","link":"https://typegg.io/solo/potumcf_3047"},{"number":"#47","name":"By The Squire","slug":"1btssov_5424","link":"https://typegg.io/solo/1btssov_5424"},{"number":"#48","name":"ENOUTHOMEAH","slug":"nttgewo_5373","link":"https://typegg.io/solo/nttgewo_5373"},{"number":"#49","name":"The Clergy","slug":"atcpwtv_4784","link":"https://typegg.io/solo/atcpwtv_4784"},{"number":"#50","name":"Yerba Mate","slug":"dmemdmf_8062","link":"https://typegg.io/solo/dmemdmf_8062"},{"number":"#51","name":"Rotational Energies","slug":"tvareot_4971","link":"https://typegg.io/solo/tvareot_4971"},{"number":"#52","name":"KRYPTOS","slug":"eyvgtqy_2644","link":"https://typegg.io/solo/eyvgtqy_2644"},{"number":"#53","name":"Pi Jumpscare","slug":"3ttaa1p_1517","link":"https://typegg.io/solo/3ttaa1p_1517"},{"number":"#54","name":"Linux Commands","slug":"ycnqptb_9823","link":"https://typegg.io/solo/ycnqptb_9823"},{"number":"#55","name":"The","slug":"tfgostc_0544","link":"https://typegg.io/solo/tfgostc_0544"},{"number":"#56","name":"Email Me","slug":"bi2jyod_5871","link":"https://typegg.io/solo/bi2jyod_5871"},{"number":"#57","name":"The Table of Values Experience","slug":"tptwgfa_4935","link":"https://typegg.io/solo/tptwgfa_4935"},{"number":"#58","name":"Shift Key","slug":"atwmots_9726","link":"https://typegg.io/solo/atwmots_9726"},{"number":"#59","name":"Chess Tactics","slug":"78o8d9b_8881","link":"https://typegg.io/solo/78o8d9b_8881"},{"number":"#60","name":"QUEMADOS","slug":"hptqmme_4489","link":"https://typegg.io/solo/hptqmme_4489"},{"number":"#61","name":"The New Line Experience","slug":"cptptpa_6337","link":"https://typegg.io/solo/cptptpa_6337"},{"number":"#62","name":"Literally Vigènere","slug":"atcmcbo_7232","link":"https://typegg.io/solo/atcmcbo_7232"},{"number":"#63","name":"Bromo-Dragonfly","slug":"14bweap_8206","link":"https://typegg.io/solo/14bweap_8206"},{"number":"#64","name":"Needs More Academia","slug":"tuawpoa_7911","link":"https://typegg.io/solo/tuawpoa_7911"},{"number":"#65","name":"Needs More Fantasy","slug":"oipbnot_2900","link":"https://typegg.io/solo/oipbnot_2900"},{"number":"#66","name":"Needs More Experimentation","slug":"enifnim_7344","link":"https://typegg.io/solo/enifnim_7344"},{"number":"#67","name":"/x","slug":"kssssnf_2301","link":"https://typegg.io/solo/kssssnf_2301"},{"number":"#68","name":"See [#]","slug":"fkkit3s_9160","link":"https://typegg.io/solo/fkkit3s_9160"},{"number":"#69","name":"Baby Delivery","slug":"n91gbbe_6825","link":"https://typegg.io/solo/n91gbbe_6825"},{"number":"#70","name":"Dostoyevsky","slug":"hdysdwt_4310","link":"https://typegg.io/solo/hdysdwt_4310"},{"number":"#71","name":"Yeast Strains (wtf)","slug":"tscysui_4765","link":"https://typegg.io/solo/tscysui_4765"},{"number":"#72","name":"Hyphen Hell","slug":"tijgnjl_6472","link":"https://typegg.io/solo/tijgnjl_6472"},{"number":"#73","name":"Pretty Blue Batch","slug":"aarwaat_1214","link":"https://typegg.io/solo/aarwaat_1214"},{"number":"#74","name":"When \"X\" then \"9\"","slug":"recpdsl_7773","link":"https://typegg.io/solo/recpdsl_7773"},{"number":"#75","name":"Ruby Script","slug":"rdfcxsp_8241","link":"https://typegg.io/solo/rdfcxsp_8241"},{"number":"#76","name":"RSA Private Key","slug":"brpkmer_4482","link":"https://typegg.io/solo/brpkmer_4482"},{"number":"#77","name":"DH Parameters","slug":"tod2gdp_9035","link":"https://typegg.io/solo/tod2gdp_9035"},{"number":"#78","name":"C Compiler","slug":"srm_0067","link":"https://typegg.io/solo/srm_0067"},{"number":"#79","name":"Yakko's World","slug":"aaaasaa_3544","link":"https://typegg.io/solo/aaaasaa_3544"},{"number":"#80","name":"Bigrams?","slug":"pllhdbg_3413","link":"https://typegg.io/solo/pllhdbg_3413"},{"number":"#81","name":"Tutte Polynomial","slug":"t1neott_0528","link":"https://typegg.io/solo/t1neott_0528"},{"number":"#82","name":"Hexadecimal Hell","slug":"fcauita_7693","link":"https://typegg.io/solo/fcauita_7693"},{"number":"#83","name":"IPv6 Routing","slug":"nrikirt_3774","link":"https://typegg.io/solo/nrikirt_3774"},{"number":"#84","name":"Codon Table","slug":"ptptstt_3036","link":"https://typegg.io/solo/ptptstt_3036"},{"number":"#85","name":"Binary Hexadecimal","slug":"bhdbhd0_3477","link":"https://typegg.io/solo/bhdbhd0_3477"},{"number":"#86","name":"2n","slug":"2481361_1610","link":"https://typegg.io/solo/2481361_1610"},{"number":"#87","name":"Linux Codes","slug":"cd1c1sp_9469","link":"https://typegg.io/solo/cd1c1sp_9469"},{"number":"#88","name":"Regular Expression Hell","slug":"a_3355","link":"https://typegg.io/solo/a_3355"},{"number":"#89","name":"How Is This Allowed","slug":"a_5355","link":"https://typegg.io/solo/a_5355"},{"number":"#90","name":"I Can Count!","slug":"1234567_7477","link":"https://typegg.io/solo/1234567_7477"},{"number":"#91","name":"Harlem Shuffle","slug":"caacvrp_8468","link":"https://typegg.io/solo/caacvrp_8468"},{"number":"#92","name":"I Hate The Economy","slug":"s1itsua_0000","link":"https://typegg.io/solo/s1itsua_0000"},{"number":"#93","name":"Citation Hell","slug":"1s22ote_6857","link":"https://typegg.io/solo/1s22ote_6857"},{"number":"#94","name":"Card Hell","slug":"fowptic_6392","link":"https://typegg.io/solo/fowptic_6392"},{"number":"#95","name":"Getting To Know Your Keys","slug":"gtkyk1k_4082","link":"https://typegg.io/solo/gtkyk1k_4082"},{"number":"#96","name":"Binary Christmas Tree","slug":"t4tctpo_7668","link":"https://typegg.io/solo/t4tctpo_7668"},{"number":"#97","name":"Beep Boop","slug":"9ce2eht_4344","link":"https://typegg.io/solo/9ce2eht_4344"},{"number":"#98","name":"Randomcase Strikes Again","slug":"tpfbfpp_2063","link":"https://typegg.io/solo/tpfbfpp_2063"},{"number":"#99","name":"1024-bit Numbers","slug":"flniahf_1627","link":"https://typegg.io/solo/flniahf_1627"},{"number":"#100","name":"Variations","slug":"mgggggl_6932","link":"https://typegg.io/solo/mgggggl_6932"}];
+
+const API_BASE = 'https://api.typegg.io/v1';
+let abortController = null;
+
+const input = document.getElementById('username-input');
+const btn = document.getElementById('fetch-btn');
+const errorArea = document.getElementById('error-area');
+const resultsArea = document.getElementById('results-area');
+
+input.addEventListener('keydown', e => { if (e.key === 'Enter' && !btn.disabled) startFetch(); });
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function fetchWithRetry(url, signal, retries = 3) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const resp = await fetch(url, { signal, headers: { 'Accept': 'application/json' } });
+      if (resp.status === 429) {
+        await sleep(Math.min(2000 * (attempt + 1), 6000));
+        continue;
+      }
+      if (!resp.ok) return { ok: false, status: resp.status, data: null };
+      const data = await resp.json();
+      return { ok: true, status: resp.status, data };
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      if (attempt === retries - 1) return { ok: false, status: 0, data: null, err: err.message };
+      await sleep(1000 * (attempt + 1));
+    }
+  }
+  return { ok: false, status: 0, data: null };
+}
+
+async function startFetch() {
+  const username = input.value.trim();
+  if (!username) return;
+
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  errorArea.innerHTML = '';
+  resultsArea.innerHTML = '';
+  showLoading(0, QUOTES.length, 0);
+
+  const results = [];
+  const BATCH = 4;
+  let errorCount = 0;
+
+  try {
+    for (let i = 0; i < QUOTES.length; i += BATCH) {
+      const batch = QUOTES.slice(i, i + BATCH);
+      const batchResults = await Promise.all(
+        batch.map(q => processQuote(q.slug, username, abortController.signal))
+      );
+      for (const r of batchResults) if (r.error) errorCount++;
+      results.push(...batchResults);
+      showLoading(results.length, QUOTES.length, errorCount);
+      if (i + BATCH < QUOTES.length) await sleep(200);
+    }
+    renderResults(username, results, errorCount);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      errorArea.innerHTML = `<div class="error-msg">Something went wrong: ${err.message || 'Please try again.'}</div>`;
+    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Track';
+  }
+}
+
+async function processQuote(slug, username, signal) {
+  const result = await fetchWithRetry(`${API_BASE}/quotes/${slug}?results=100&distinct=true`, signal);
+
+  if (!result.ok) {
+    return { slug, completed: false, length: null, error: true, errorDetail: `HTTP ${result.status}${result.err ? ': '+result.err : ''}` };
+  }
+
+  const data = result.data;
+  const length = (typeof data.length === 'number') ? data.length : (data.text ? data.text.length : null);
+  const lb = data.leaderboard || [];
+  const userEntry = lb.find(e => e.username && e.username.toLowerCase() === username.toLowerCase());
+
+  return {
+    slug,
+    completed: !!userEntry,
+    length,
+    wpm: userEntry ? userEntry.wpm : null,
+    accuracy: userEntry ? userEntry.accuracy : null,
+    error: false,
+    lbSize: lb.length
+  };
+}
+
+function showLoading(done, total, errors) {
+  const pct = Math.round((done / total) * 100);
+  resultsArea.innerHTML = `
+    <div class="loading-state">
+      <div class="spinner"></div>
+      <p>Scanning quote leaderboards...</p>
+      <div class="progress-bar-bg" style="max-width:280px;margin:12px auto 8px">
+        <div class="progress-bar-fill" style="width:${pct}%"></div>
+      </div>
+      <p class="progress-detail">${done} / ${total} checked${errors > 0 ? ` (${errors} failed)` : ''}</p>
+    </div>`;
+}
+
+function renderResults(username, results, errorCount) {
+  const merged = QUOTES.map((q, i) => ({ ...q, ...results[i] }));
+  const completed = merged.filter(q => q.completed);
+  const remaining = merged.filter(q => !q.completed && !q.error);
+  const errored = merged.filter(q => q.error);
+
+  const totalChars = merged.reduce((s, q) => s + (q.length || 0), 0);
+  const typedChars = completed.reduce((s, q) => s + (q.length || 0), 0);
+  const remainingChars = totalChars - typedChars;
+  const pct = Math.round((completed.length / QUOTES.length) * 100);
+
+  let warnHtml = '';
+  if (errorCount > 0) {
+    warnHtml = `<div class="warn-msg">${errorCount} quote${errorCount > 1 ? 's' : ''} failed to load (likely rate-limited by the API). These show with a dashed border and red dot. Try scanning again in a minute for full results.</div>`;
+  }
+
+  let html = warnHtml + `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Completed</div>
+        <div class="stat-value" style="color:var(--completed)">${completed.length}<span style="font-size:0.8rem;color:var(--text3);font-weight:400"> / 100</span></div>
+        <div class="stat-sub">${pct}% done</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Remaining</div>
+        <div class="stat-value" style="color:var(--remaining)">${remaining.length}${errored.length > 0 ? `<span style="font-size:0.8rem;color:var(--text3);font-weight:400"> +${errored.length}?</span>` : ''}</div>
+        <div class="stat-sub">quotes left</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total chars</div>
+        <div class="stat-value">${totalChars.toLocaleString()}</div>
+        <div class="stat-sub">across all 100</div>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
+      <div class="progress-labels"><span>${completed.length} completed</span><span>${remaining.length + errored.length} remaining</span></div>
+    </div>
+    <div class="char-breakdown">
+      <div class="char-card typed"><div class="cl">Characters typed</div><div class="cv">${typedChars.toLocaleString()}</div></div>
+      <div class="char-card remaining"><div class="cl">Characters remaining</div><div class="cv">${remainingChars.toLocaleString()}</div></div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="remaining" onclick="switchTab('remaining')">Remaining <span class="badge badge-todo">${remaining.length + errored.length}</span></button>
+      <button class="tab" data-tab="completed" onclick="switchTab('completed')">Completed <span class="badge badge-done">${completed.length}</span></button>
+      <button class="tab" data-tab="all" onclick="switchTab('all')">All 100</button>
+    </div>
+    <div class="quote-list" id="quote-list"></div>`;
+
+  resultsArea.innerHTML = html;
+  window._allQuotes = merged;
+  window._completed = completed;
+  window._remaining = [...remaining, ...errored];
+  switchTab('remaining');
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  let list = tab === 'remaining' ? window._remaining : tab === 'completed' ? window._completed : window._allQuotes;
+  const container = document.getElementById('quote-list');
+  if (!list || list.length === 0) {
+    container.innerHTML = `<div class="empty-state"><p>${tab === 'completed' ? 'No quotes completed yet.' : tab === 'remaining' ? 'All 100 done — absolutely incredible.' : 'No data.'}</p></div>`;
+    return;
+  }
+  container.innerHTML = list.map(q => `
+    <a class="quote-item${q.error ? ' errored' : ''}" href="${q.link}" target="_blank" rel="noopener">
+      <span class="quote-num">${q.number}</span>
+      <span class="quote-name">${escHtml(q.name)}</span>
+      ${q.error ? `<span class="quote-err-label">${escHtml(q.errorDetail || 'failed')}</span>` : ''}
+      ${q.length ? `<span class="quote-chars">${q.length.toLocaleString()} chars</span>` : ''}
+      <span class="quote-status ${q.completed ? 'done' : q.error ? 'err' : 'todo'}"></span>
+    </a>`).join('');
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>
